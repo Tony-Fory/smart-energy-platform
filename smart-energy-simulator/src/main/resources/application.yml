@@ -1,0 +1,21 @@
+server:
+  port: 8081
+
+simulator:
+  # 后端服务地址
+  server-url: http://localhost:8080
+  # 数据采集周期（秒）
+  interval: 10
+
+  # 模拟设备列表
+  devices:
+    - deviceCode: DEVICE001
+      deviceName: 客厅电视机
+      deviceType: TV
+    - deviceCode: DEVICE002
+      deviceName: 卧室电风扇
+      deviceType: FAN
+
+logging:
+  level:
+    com.smartenergy.simulator: INFO

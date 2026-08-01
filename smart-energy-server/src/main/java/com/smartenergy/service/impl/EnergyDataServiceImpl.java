@@ -5,6 +5,8 @@ import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.entity.Device;
 import com.smartenergy.mapper.DeviceMapper;
 import com.smartenergy.service.EnergyDataService;
+import com.smartenergy.service.RedisService;
+import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -19,7 +21,7 @@ import java.util.List;
 /**
  * 能源数据服务实现
  * <p>
- * 接收模拟器上报的能源数据，写入 TDengine 时序数据库。
+ * 接收模拟器上报的能源数据，写入 TDengine 时序数据库，同时更新 Redis 实时状态缓存。
  *
  * @author smart-energy
  */
@@ -29,6 +31,7 @@ public class EnergyDataServiceImpl implements EnergyDataService {
 
     private final DeviceMapper deviceMapper;
     private final JdbcTemplate tdengineJdbcTemplate;
+    private final RedisService redisService;
 
     private static final String INSERT_SQL =
             "INSERT INTO energy_data_%s USING energy_data TAGS ('%s', '%s') VALUES (?, ?, ?, ?, ?)";
@@ -37,9 +40,11 @@ public class EnergyDataServiceImpl implements EnergyDataService {
      * 显式构造函数，通过 @Qualifier 指定 TDengine 的 JdbcTemplate。
      */
     public EnergyDataServiceImpl(DeviceMapper deviceMapper,
-                                 @Qualifier("tdengineJdbcTemplate") JdbcTemplate tdengineJdbcTemplate) {
+                                 @Qualifier("tdengineJdbcTemplate") JdbcTemplate tdengineJdbcTemplate,
+                                 RedisService redisService) {
         this.deviceMapper = deviceMapper;
         this.tdengineJdbcTemplate = tdengineJdbcTemplate;
+        this.redisService = redisService;
     }
 
     @Override
@@ -77,6 +82,19 @@ public class EnergyDataServiceImpl implements EnergyDataService {
                 dto.getEnergy());
 
         log.debug("写入 TDengine 成功: deviceCode={}", dto.getDeviceCode());
+
+        // 3. 更新 Redis 实时状态缓存
+        DeviceStatusVO status = new DeviceStatusVO();
+        status.setDeviceCode(dto.getDeviceCode());
+        status.setVoltage(dto.getVoltage());
+        status.setCurrent(dto.getCurrent());
+        status.setPower(dto.getPower());
+        status.setEnergy(dto.getEnergy());
+        status.setOnline(true);
+        status.setUpdateTime(dto.getCollectTime() != null
+                ? dto.getCollectTime()
+                : LocalDateTime.now());
+        redisService.saveDeviceStatus(status);
     }
 
     @Override
@@ -120,5 +138,21 @@ public class EnergyDataServiceImpl implements EnergyDataService {
 
         log.info("查询历史数据完成: deviceCode={}, 返回 {} 条记录", deviceCode, list.size());
         return vo;
+    }
+
+    @Override
+    public DeviceStatusVO queryStatus(String deviceCode) {
+        log.info("查询设备实时状态: deviceCode={}", deviceCode);
+
+        DeviceStatusVO status = redisService.getDeviceStatus(deviceCode);
+        if (status == null) {
+            // Redis 中没有缓存，设备离线
+            log.info("设备离线或无数据: deviceCode={}", deviceCode);
+            status = new DeviceStatusVO();
+            status.setDeviceCode(deviceCode);
+            status.setOnline(false);
+        }
+
+        return status;
     }
 }

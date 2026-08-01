@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.entity.Device;
 import com.smartenergy.mapper.DeviceMapper;
+import com.smartenergy.service.RedisService;
+import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +51,9 @@ class EnergyDataServiceImplTest {
     @Mock
     private JdbcTemplate tdengineJdbcTemplate;
 
+    @Mock
+    private RedisService redisService;
+
     @InjectMocks
     private EnergyDataServiceImpl energyDataService;
 
@@ -68,7 +76,7 @@ class EnergyDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("正常写入 TDengine - 设备存在时")
+    @DisplayName("正常写入 TDengine 并更新 Redis - 设备存在时")
     void shouldInsertIntoWhenDeviceExists() {
         when(deviceMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(mockDevice);
@@ -77,6 +85,7 @@ class EnergyDataServiceImplTest {
 
         energyDataService.save(validDto);
 
+        // 验证 TDengine 写入
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Timestamp> tsCaptor = ArgumentCaptor.forClass(Timestamp.class);
         verify(tdengineJdbcTemplate).update(
@@ -93,6 +102,18 @@ class EnergyDataServiceImplTest {
         assertEquals(expectedSql, sqlCaptor.getValue());
         assertEquals(Timestamp.valueOf(validDto.getCollectTime()),
                 tsCaptor.getValue());
+
+        // 验证 Redis 写入
+        ArgumentCaptor<DeviceStatusVO> statusCaptor = ArgumentCaptor.forClass(DeviceStatusVO.class);
+        verify(redisService).saveDeviceStatus(statusCaptor.capture());
+        DeviceStatusVO savedStatus = statusCaptor.getValue();
+        assertEquals("DEVICE001", savedStatus.getDeviceCode());
+        assertEquals(220.5, savedStatus.getVoltage());
+        assertEquals(5.0, savedStatus.getCurrent());
+        assertEquals(1102.5, savedStatus.getPower());
+        assertEquals(100.5, savedStatus.getEnergy());
+        assertTrue(savedStatus.getOnline());
+        assertEquals(validDto.getCollectTime(), savedStatus.getUpdateTime());
     }
 
     @Test
@@ -171,5 +192,40 @@ class EnergyDataServiceImplTest {
 
         assertEquals("DEVICE001", result.getDeviceCode());
         assertTrue(result.getList().isEmpty());
+    }
+
+    @Test
+    @DisplayName("查询实时状态 - Redis 有缓存时返回在线状态")
+    void shouldReturnOnlineStatusWhenRedisHasData() {
+        DeviceStatusVO cached = new DeviceStatusVO();
+        cached.setDeviceCode("DEVICE001");
+        cached.setVoltage(220.5);
+        cached.setCurrent(5.0);
+        cached.setPower(1102.5);
+        cached.setEnergy(100.5);
+        cached.setOnline(true);
+        cached.setUpdateTime(LocalDateTime.of(2026, 8, 1, 10, 0, 0));
+
+        when(redisService.getDeviceStatus("DEVICE001")).thenReturn(cached);
+
+        DeviceStatusVO result = energyDataService.queryStatus("DEVICE001");
+
+        assertNotNull(result);
+        assertEquals("DEVICE001", result.getDeviceCode());
+        assertEquals(220.5, result.getVoltage());
+        assertTrue(result.getOnline());
+    }
+
+    @Test
+    @DisplayName("查询实时状态 - Redis 无缓存时返回离线状态")
+    void shouldReturnOfflineStatusWhenRedisMisses() {
+        when(redisService.getDeviceStatus("DEVICE001")).thenReturn(null);
+
+        DeviceStatusVO result = energyDataService.queryStatus("DEVICE001");
+
+        assertNotNull(result);
+        assertEquals("DEVICE001", result.getDeviceCode());
+        assertFalse(result.getOnline());
+        assertNull(result.getVoltage());
     }
 }

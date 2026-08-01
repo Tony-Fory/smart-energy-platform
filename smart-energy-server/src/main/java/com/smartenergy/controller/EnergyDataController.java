@@ -3,6 +3,7 @@ package com.smartenergy.controller;
 import com.smartenergy.common.Result;
 import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.service.EnergyDataService;
+import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,12 @@ public class EnergyDataController {
             @RequestParam(defaultValue = "24") int hours,
             @RequestParam(defaultValue = "100") int limit) {
         EnergyHistoryVO vo = energyDataService.queryHistory(deviceCode, hours, limit);
+        return Result.success(vo);
+    }
+
+    @GetMapping("/energy/status/{deviceCode}")
+    public Result<DeviceStatusVO> status(@PathVariable String deviceCode) {
+        DeviceStatusVO vo = energyDataService.queryStatus(deviceCode);
         return Result.success(vo);
     }
 }

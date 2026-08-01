@@ -6,6 +6,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import javax.sql.DataSource;
 
@@ -26,5 +28,10 @@ public class TdengineConfig {
         config.setMinimumIdle(1);
         config.setInitializationFailTimeout(0);
         return new HikariDataSource(config);
+    }
+
+    @Bean(name = "tdengineJdbcTemplate")
+    public JdbcTemplate tdengineJdbcTemplate(@Qualifier("tdengineDataSource") DataSource tdengineDataSource) {
+        return new JdbcTemplate(tdengineDataSource);
     }
 }

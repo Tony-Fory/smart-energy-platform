@@ -9,6 +9,5 @@ import org.apache.ibatis.annotations.Mapper;
  *
  * @author smart-energy
  */
-@Mapper
 public interface SysUserMapper extends BaseMapper<SysUser> {
 }

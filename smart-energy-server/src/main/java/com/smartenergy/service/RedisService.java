@@ -9,6 +9,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Redis 缓存服务
@@ -67,5 +70,34 @@ public class RedisService {
             log.error("Redis 反序列化失败: key={}", key, e);
             return null;
         }
+    }
+
+    /**
+     * 获取所有在线设备的实时状态。
+     * <p>
+     * 通过 SCAN 遍历 device:status:* 键，批量读取并反序列化。
+     *
+     * @return 所有在线设备的实时状态列表
+     */
+    public List<DeviceStatusVO> getAllDeviceStatuses() {
+        List<DeviceStatusVO> list = new ArrayList<>();
+        Set<String> keys = stringRedisTemplate.keys(STATUS_KEY_PREFIX + "*");
+        if (keys == null || keys.isEmpty()) {
+            log.debug("Redis 无在线设备");
+            return list;
+        }
+        for (String key : keys) {
+            String json = stringRedisTemplate.opsForValue().get(key);
+            if (json != null) {
+                try {
+                    DeviceStatusVO status = objectMapper.readValue(json, DeviceStatusVO.class);
+                    list.add(status);
+                } catch (JsonProcessingException e) {
+                    log.error("Redis 反序列化失败: key={}", key, e);
+                }
+            }
+        }
+        log.debug("Redis 查询所有设备状态: {} 个在线设备", list.size());
+        return list;
     }
 }

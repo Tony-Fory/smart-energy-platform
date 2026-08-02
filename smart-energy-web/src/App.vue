@@ -8,6 +8,7 @@ import { RouterView, RouterLink } from 'vue-router'
       <nav class="app-nav">
         <RouterLink to="/">首页</RouterLink>
         <RouterLink to="/dashboard">实时监控</RouterLink>
+        <RouterLink to="/device">设备管理</RouterLink>
       </nav>
     </header>
     <main class="app-main">

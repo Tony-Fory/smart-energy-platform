@@ -1,6 +1,8 @@
 package com.smartenergy.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.smartenergy.common.PageResult;
 import com.smartenergy.dto.DeviceCreateDTO;
 import com.smartenergy.entity.Device;
 import com.smartenergy.mapper.DeviceMapper;
@@ -9,6 +11,7 @@ import com.smartenergy.vo.DeviceVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -24,10 +27,31 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceMapper deviceMapper;
 
     @Override
-    public List<DeviceVO> listDevices() {
-        List<Device> devices = deviceMapper.selectList(
-                new LambdaQueryWrapper<Device>().orderByDesc(Device::getId));
-        return devices.stream().map(this::toVO).toList();
+    public PageResult<DeviceVO> listDevices(int page, int pageSize,
+                                            String keyword, String deviceType, Integer status) {
+        LambdaQueryWrapper<Device> wrapper = new LambdaQueryWrapper<>();
+
+        // keyword: 设备名称或设备编号模糊匹配
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w
+                    .like(Device::getDeviceName, keyword)
+                    .or()
+                    .like(Device::getDeviceCode, keyword));
+        }
+        // 设备类型精确匹配
+        if (StringUtils.hasText(deviceType)) {
+            wrapper.eq(Device::getDeviceType, deviceType);
+        }
+        // 状态精确匹配
+        if (status != null) {
+            wrapper.eq(Device::getStatus, status);
+        }
+
+        wrapper.orderByDesc(Device::getId);
+
+        Page<Device> devicePage = deviceMapper.selectPage(Page.of(page, pageSize), wrapper);
+        List<DeviceVO> vos = devicePage.getRecords().stream().map(this::toVO).toList();
+        return PageResult.of(vos, devicePage.getTotal());
     }
 
     @Override

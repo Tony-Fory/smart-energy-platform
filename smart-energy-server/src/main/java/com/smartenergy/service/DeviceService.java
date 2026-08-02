@@ -1,9 +1,8 @@
 package com.smartenergy.service;
 
+import com.smartenergy.common.PageResult;
 import com.smartenergy.dto.DeviceCreateDTO;
 import com.smartenergy.vo.DeviceVO;
-
-import java.util.List;
 
 /**
  * 设备服务接口
@@ -13,9 +12,15 @@ import java.util.List;
 public interface DeviceService {
 
     /**
-     * 查询设备列表
+     * 分页查询设备列表
+     *
+     * @param page       页码
+     * @param pageSize   每页条数
+     * @param keyword    关键字（设备名称/编号模糊匹配）
+     * @param deviceType 设备类型筛选
+     * @param status     状态筛选
      */
-    List<DeviceVO> listDevices();
+    PageResult<DeviceVO> listDevices(int page, int pageSize, String keyword, String deviceType, Integer status);
 
     /**
      * 根据ID查询设备详情

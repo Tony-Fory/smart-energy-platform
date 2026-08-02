@@ -1,5 +1,6 @@
 package com.smartenergy.controller;
 
+import com.smartenergy.common.PageResult;
 import com.smartenergy.common.Result;
 import com.smartenergy.dto.DeviceCreateDTO;
 import com.smartenergy.service.DeviceService;
@@ -7,8 +8,6 @@ import com.smartenergy.vo.DeviceVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 设备管理接口
@@ -23,9 +22,14 @@ public class DeviceController {
     private final DeviceService deviceService;
 
     @GetMapping("/devices")
-    public Result<List<DeviceVO>> listDevices() {
-        List<DeviceVO> devices = deviceService.listDevices();
-        return Result.success(devices);
+    public Result<PageResult<DeviceVO>> listDevices(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String deviceType,
+            @RequestParam(required = false) Integer status) {
+        PageResult<DeviceVO> result = deviceService.listDevices(page, pageSize, keyword, deviceType, status);
+        return Result.success(result);
     }
 
     @GetMapping("/devices/{id}")

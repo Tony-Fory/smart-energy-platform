@@ -15,7 +15,7 @@ USE smart_energy;
 CREATE TABLE IF NOT EXISTS sys_user (
     id          BIGINT          NOT NULL AUTO_INCREMENT  COMMENT '主键ID',
     username    VARCHAR(50)     NOT NULL                 COMMENT '用户名',
-    password    VARCHAR(255)    NOT NULL                 COMMENT '密码（加密存储）',
+    password    VARCHAR(255)    NOT NULL                 COMMENT '密码（BCrypt 加密存储）',
     nickname    VARCHAR(50)     DEFAULT NULL             COMMENT '昵称',
     status      TINYINT         NOT NULL DEFAULT 1       COMMENT '状态：0-禁用，1-启用',
     create_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 
 -- -----------------------------------------------------------
 -- 2. 插入测试用户 admin
---    密码：admin123（明文示例，后续实现时需替换为加密密码）
+--    密码：admin123（BCrypt 加密，cost=10）
 -- -----------------------------------------------------------
 INSERT INTO sys_user (username, password, nickname, status) VALUES
-    ('admin', 'admin123', '管理员', 1);
+    ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '管理员', 1);

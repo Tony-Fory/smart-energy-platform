@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { RouterView, RouterLink } from 'vue-router'
+import { useRouter, useRoute, RouterView, RouterLink } from 'vue-router'
+import { isAuthenticated, clearAuthToken, initAuth } from './api/auth'
+
+// Initialize auth from localStorage on app startup
+initAuth()
+
+const router = useRouter()
+const route = useRoute()
+
+function handleLogout() {
+  clearAuthToken()
+  router.replace('/login')
+}
 </script>
 
 <template>
   <div id="app-wrapper">
-    <header class="app-header">
+    <header v-if="isAuthenticated() && route.path !== '/login'" class="app-header">
       <nav class="app-nav">
         <RouterLink to="/">首页</RouterLink>
         <RouterLink to="/dashboard">实时监控</RouterLink>
         <RouterLink to="/device">设备管理</RouterLink>
+        <span class="nav-spacer"></span>
+        <a class="logout-link" @click.prevent="handleLogout">退出登录</a>
       </nav>
     </header>
     <main class="app-main">
@@ -57,6 +71,20 @@ import { RouterView, RouterLink } from 'vue-router'
 .app-nav a.router-link-active {
   background: #ecf5ff;
   color: #409eff;
+}
+
+.nav-spacer {
+  flex: 1;
+}
+
+.logout-link {
+  cursor: pointer;
+  color: #f56c6c !important;
+}
+
+.logout-link:hover {
+  background: #fef0f0 !important;
+  color: #f56c6c !important;
 }
 
 .app-main {

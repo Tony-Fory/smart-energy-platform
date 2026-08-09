@@ -44,6 +44,11 @@ management:
     health:
       show-details: when_authorized
 
+# JWT 配置（开发环境默认值，生产环境通过 JWT_SECRET 环境变量覆盖）
+jwt:
+  secret: ${JWT_SECRET:smart-energy-dev-secret-key-2026-do-not-use-in-production}
+  expiration: 7200
+
 # Swagger / OpenAPI
 springdoc:
   swagger-ui:

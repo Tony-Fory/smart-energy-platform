@@ -5,11 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.smartenergy.vo.DeviceStatusVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -26,6 +31,8 @@ public class RedisService {
 
     private static final String STATUS_KEY_PREFIX = "device:status:";
     private static final Duration STATUS_TTL = Duration.ofMinutes(5);
+    /** SCAN 每批返回数量 */
+    private static final int SCAN_COUNT = 100;
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
@@ -75,18 +82,20 @@ public class RedisService {
     /**
      * 获取所有在线设备的实时状态。
      * <p>
-     * 通过 KEYS 遍历 device:status:* 键，批量读取并反序列化。
-     * TODO: 下一轮改为 SCAN 遍历，避免 KEYS 阻塞 Redis。
+     * 使用 SCAN 命令逐批遍历 device:status:* 键，避免 KEYS 阻塞 Redis。
+     * 每批扫描 {@value #SCAN_COUNT} 个键，扫描完成后关闭 cursor。
      *
      * @return 所有在线设备的实时状态列表
      */
     public List<DeviceStatusVO> getAllDeviceStatuses() {
         List<DeviceStatusVO> list = new ArrayList<>();
-        Set<String> keys = stringRedisTemplate.keys(STATUS_KEY_PREFIX + "*");
-        if (keys == null || keys.isEmpty()) {
+
+        Set<String> keys = scanKeys(STATUS_KEY_PREFIX + "*");
+        if (keys.isEmpty()) {
             log.debug("Redis 无在线设备");
             return list;
         }
+
         for (String key : keys) {
             String json = stringRedisTemplate.opsForValue().get(key);
             if (json != null) {
@@ -100,5 +109,30 @@ public class RedisService {
         }
         log.debug("Redis 查询所有设备状态: {} 个在线设备", list.size());
         return list;
+    }
+
+    /**
+     * 使用 SCAN 命令逐批遍历匹配 pattern 的键。
+     * <p>
+     * SCAN 是非阻塞的增量迭代命令，适用于生产环境。
+     *
+     * @param pattern Redis 键匹配模式
+     * @return 匹配的键集合
+     */
+    Set<String> scanKeys(String pattern) {
+        return stringRedisTemplate.execute((RedisCallback<Set<String>>) connection -> {
+            Set<String> keySet = new HashSet<>();
+            ScanOptions options = ScanOptions.scanOptions()
+                    .match(pattern)
+                    .count(SCAN_COUNT)
+                    .build();
+            try (Cursor<byte[]> cursor = connection.scan(options)) {
+                cursor.forEachRemaining(key ->
+                        keySet.add(new String(key, StandardCharsets.UTF_8)));
+            } catch (Exception e) {
+                log.error("Redis SCAN 遍历异常: pattern={}", pattern, e);
+            }
+            return keySet;
+        });
     }
 }

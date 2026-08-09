@@ -67,6 +67,13 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     @Transactional
     public DeviceVO createDevice(DeviceCreateDTO dto) {
+        // 检查 deviceCode 是否已被占用
+        if (deviceMapper.selectCount(
+                new LambdaQueryWrapper<Device>()
+                        .eq(Device::getDeviceCode, dto.getDeviceCode())) > 0) {
+            throw BusinessException.badRequest("设备编号已存在: " + dto.getDeviceCode());
+        }
+
         Device device = new Device();
         device.setDeviceCode(dto.getDeviceCode());
         device.setDeviceName(dto.getDeviceName());
@@ -83,6 +90,13 @@ public class DeviceServiceImpl implements DeviceService {
         Device device = deviceMapper.selectById(id);
         if (device == null) {
             throw BusinessException.notFound("设备不存在");
+        }
+        // 检查 deviceCode 是否被其他设备占用
+        if (deviceMapper.selectCount(
+                new LambdaQueryWrapper<Device>()
+                        .eq(Device::getDeviceCode, dto.getDeviceCode())
+                        .ne(Device::getId, id)) > 0) {
+            throw BusinessException.badRequest("设备编号已存在: " + dto.getDeviceCode());
         }
         device.setDeviceCode(dto.getDeviceCode());
         device.setDeviceName(dto.getDeviceName());

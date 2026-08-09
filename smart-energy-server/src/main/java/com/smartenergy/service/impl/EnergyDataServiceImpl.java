@@ -5,6 +5,7 @@ import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.entity.Device;
 import com.smartenergy.exception.BusinessException;
 import com.smartenergy.mapper.DeviceMapper;
+import com.smartenergy.service.AlarmDetectService;
 import com.smartenergy.service.EnergyDataService;
 import com.smartenergy.service.RedisService;
 import com.smartenergy.vo.DeviceStatusVO;
@@ -34,6 +35,7 @@ public class EnergyDataServiceImpl implements EnergyDataService {
     private final DeviceMapper deviceMapper;
     private final JdbcTemplate tdengineJdbcTemplate;
     private final RedisService redisService;
+    private final AlarmDetectService alarmDetectService;
 
     private static final String INSERT_SQL =
             "INSERT INTO energy_data_%s USING energy_data TAGS ('%s', '%s') VALUES (?, ?, ?, ?, ?)";
@@ -46,10 +48,12 @@ public class EnergyDataServiceImpl implements EnergyDataService {
      */
     public EnergyDataServiceImpl(DeviceMapper deviceMapper,
                                  @Qualifier("tdengineJdbcTemplate") JdbcTemplate tdengineJdbcTemplate,
-                                 RedisService redisService) {
+                                 RedisService redisService,
+                                 AlarmDetectService alarmDetectService) {
         this.deviceMapper = deviceMapper;
         this.tdengineJdbcTemplate = tdengineJdbcTemplate;
         this.redisService = redisService;
+        this.alarmDetectService = alarmDetectService;
     }
 
     @Override
@@ -98,7 +102,14 @@ public class EnergyDataServiceImpl implements EnergyDataService {
 
         log.debug("写入 TDengine 成功: deviceCode={}", dto.getDeviceCode());
 
-        // 4. 更新 Redis 实时状态缓存
+        // 4. 告警检测（在事务外，告警失败不影响数据写入）
+        try {
+            alarmDetectService.detectAndProcess(dto, device);
+        } catch (Exception e) {
+            log.error("告警检测异常: deviceCode={}", dto.getDeviceCode(), e);
+        }
+
+        // 5. 更新 Redis 实时状态缓存
         DeviceStatusVO status = new DeviceStatusVO();
         status.setDeviceCode(dto.getDeviceCode());
         status.setVoltage(dto.getVoltage());

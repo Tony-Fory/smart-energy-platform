@@ -10,7 +10,7 @@ import java.util.Set;
 public class AlarmRuleCreateDTO {
 
     /** 合法的监控指标 */
-    public static final Set<String> VALID_METRICS = Set.of("POWER", "VOLTAGE", "CURRENT");
+    public static final Set<String> VALID_METRICS = Set.of("POWER", "VOLTAGE", "CURRENT", "ENERGY");
     /** 合法的运算符 */
     public static final Set<String> VALID_OPERATORS = Set.of("GT", "GTE", "LT", "LTE");
     /** 合法的严重级别 */

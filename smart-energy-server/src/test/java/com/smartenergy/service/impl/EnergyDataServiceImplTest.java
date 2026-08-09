@@ -5,6 +5,7 @@ import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.entity.Device;
 import com.smartenergy.exception.BusinessException;
 import com.smartenergy.mapper.DeviceMapper;
+import com.smartenergy.service.AlarmDetectService;
 import com.smartenergy.service.RedisService;
 import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
@@ -54,6 +55,9 @@ class EnergyDataServiceImplTest {
 
     @Mock
     private RedisService redisService;
+
+    @Mock
+    private AlarmDetectService alarmDetectService;
 
     @InjectMocks
     private EnergyDataServiceImpl energyDataService;

@@ -111,6 +111,26 @@ public class PermissionInterceptor implements HandlerInterceptor {
             };
         }
 
+        // Alarm rules 路径按方法区分权限
+        if (path.startsWith("/api/alarm/rules")) {
+            return switch (method) {
+                case "POST" -> "ALARM_RULE_CREATE";
+                case "PUT" -> "ALARM_RULE_UPDATE";
+                case "DELETE" -> "ALARM_RULE_DELETE";
+                default -> "ALARM_RULE_VIEW"; // GET
+            };
+        }
+
+        // Alarm ack (more specific, check before generic alarm view)
+        if (path.startsWith("/api/alarms/") && path.endsWith("/ack") && "PUT".equals(method)) {
+            return "ALARM_ACK";
+        }
+
+        // Alarm records view
+        if (path.startsWith("/api/alarms")) {
+            return "ALARM_VIEW";
+        }
+
         return null;
     }
 

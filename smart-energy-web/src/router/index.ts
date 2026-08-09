@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import DeviceView from '../views/DeviceView.vue'
+import AlarmView from '../views/AlarmView.vue'
+import AlarmRuleView from '../views/AlarmRuleView.vue'
 import LoginView from '../views/LoginView.vue'
 import { isAuthenticated } from '../api/auth'
 
@@ -30,6 +32,18 @@ const router = createRouter({
       path: '/device',
       name: 'device',
       component: DeviceView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/alarm',
+      name: 'alarm',
+      component: AlarmView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/alarm/rules',
+      name: 'alarmRules',
+      component: AlarmRuleView,
       meta: { requiresAuth: true },
     },
   ],

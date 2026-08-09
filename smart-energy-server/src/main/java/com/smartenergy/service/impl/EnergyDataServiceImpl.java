@@ -3,6 +3,7 @@ package com.smartenergy.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.entity.Device;
+import com.smartenergy.exception.BusinessException;
 import com.smartenergy.mapper.DeviceMapper;
 import com.smartenergy.service.EnergyDataService;
 import com.smartenergy.service.RedisService;
@@ -17,6 +18,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * 能源数据服务实现
@@ -35,6 +37,9 @@ public class EnergyDataServiceImpl implements EnergyDataService {
 
     private static final String INSERT_SQL =
             "INSERT INTO energy_data_%s USING energy_data TAGS ('%s', '%s') VALUES (?, ?, ?, ?, ?)";
+
+    /** deviceCode / deviceType 安全字符集：字母、数字、下划线、连字符 */
+    private static final Pattern SAFE_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]+$");
 
     /**
      * 显式构造函数，通过 @Qualifier 指定 TDengine 的 JdbcTemplate。
@@ -57,15 +62,25 @@ public class EnergyDataServiceImpl implements EnergyDataService {
                 dto.getEnergy(),
                 dto.getCollectTime());
 
+        // 0. 防御性校验：deviceCode 必须为安全字符集，防止 TDengine 动态 SQL 注入
+        if (!SAFE_CODE_PATTERN.matcher(dto.getDeviceCode()).matches()) {
+            throw BusinessException.badRequest("设备编号包含非法字符: " + dto.getDeviceCode());
+        }
+
         // 1. 从 MySQL 查询设备类型
         Device device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<Device>()
                         .eq(Device::getDeviceCode, dto.getDeviceCode()));
         if (device == null) {
-            throw new RuntimeException("设备不存在: " + dto.getDeviceCode());
+            throw BusinessException.notFound("设备不存在: " + dto.getDeviceCode());
         }
 
-        // 2. 构造 SQL 并写入 TDengine
+        // 2. 防御性校验：deviceType 也必须为安全字符集
+        if (!SAFE_CODE_PATTERN.matcher(device.getDeviceType()).matches()) {
+            throw BusinessException.badRequest("设备类型包含非法字符: " + device.getDeviceType());
+        }
+
+        // 3. 构造 SQL 并写入 TDengine
         String sql = String.format(INSERT_SQL,
                 dto.getDeviceCode(),
                 dto.getDeviceCode(),
@@ -83,7 +98,7 @@ public class EnergyDataServiceImpl implements EnergyDataService {
 
         log.debug("写入 TDengine 成功: deviceCode={}", dto.getDeviceCode());
 
-        // 3. 更新 Redis 实时状态缓存
+        // 4. 更新 Redis 实时状态缓存
         DeviceStatusVO status = new DeviceStatusVO();
         status.setDeviceCode(dto.getDeviceCode());
         status.setVoltage(dto.getVoltage());

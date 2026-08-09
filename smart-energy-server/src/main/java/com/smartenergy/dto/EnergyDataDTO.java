@@ -2,6 +2,7 @@ package com.smartenergy.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 public class EnergyDataDTO {
 
     @NotBlank(message = "设备编号不能为空")
+    @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "设备编号只能包含字母、数字、下划线和连字符")
     private String deviceCode;
 
     @NotNull(message = "电压不能为空")

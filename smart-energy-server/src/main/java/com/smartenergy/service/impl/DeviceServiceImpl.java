@@ -8,6 +8,7 @@ import com.smartenergy.entity.Device;
 import com.smartenergy.mapper.DeviceMapper;
 import com.smartenergy.service.DeviceService;
 import com.smartenergy.vo.DeviceVO;
+import com.smartenergy.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +59,7 @@ public class DeviceServiceImpl implements DeviceService {
     public DeviceVO getDevice(Long id) {
         Device device = deviceMapper.selectById(id);
         if (device == null) {
-            throw new RuntimeException("设备不存在");
+            throw BusinessException.notFound("设备不存在");
         }
         return toVO(device);
     }
@@ -81,7 +82,7 @@ public class DeviceServiceImpl implements DeviceService {
     public DeviceVO updateDevice(Long id, DeviceCreateDTO dto) {
         Device device = deviceMapper.selectById(id);
         if (device == null) {
-            throw new RuntimeException("设备不存在");
+            throw BusinessException.notFound("设备不存在");
         }
         device.setDeviceCode(dto.getDeviceCode());
         device.setDeviceName(dto.getDeviceName());
@@ -99,7 +100,7 @@ public class DeviceServiceImpl implements DeviceService {
     public void deleteDevice(Long id) {
         Device device = deviceMapper.selectById(id);
         if (device == null) {
-            throw new RuntimeException("设备不存在");
+            throw BusinessException.notFound("设备不存在");
         }
         deviceMapper.deleteById(id);
     }

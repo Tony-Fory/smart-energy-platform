@@ -1,6 +1,12 @@
 server:
   port: ${SERVER_PORT:8080}
 
+# CORS 跨域配置
+cors:
+  allowed-origins:
+    - http://localhost:5173
+    - http://127.0.0.1:5173
+
 spring:
   application:
     name: smart-energy-server

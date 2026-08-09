@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS device (
     device_name VARCHAR(100)    NOT NULL                 COMMENT '设备名称',
     device_type VARCHAR(30)     NOT NULL                 COMMENT '设备类型：TV-电视机，FAN-电风扇',
     location    VARCHAR(200)    DEFAULT NULL             COMMENT '安装位置',
-    status      TINYINT         NOT NULL DEFAULT 1       COMMENT '设备状态：0-离线，1-在线',
+    status      TINYINT         NOT NULL DEFAULT 1       COMMENT '设备状态：0-停用，1-启用',
     create_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),

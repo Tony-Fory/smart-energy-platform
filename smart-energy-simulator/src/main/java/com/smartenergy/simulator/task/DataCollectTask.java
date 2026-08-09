@@ -31,6 +31,7 @@ public class DataCollectTask {
     /**
      * 模拟设备列表：
      * deviceCode → deviceType
+     * TODO: 下一轮通过 @ConfigurationProperties 从 application.yml 读取设备配置，移除硬编码。
      */
     private final List<Map<String, String>> devices = List.of(
             Map.of("deviceCode", "DEVICE001", "deviceType", "TV"),

@@ -3,6 +3,7 @@ package com.smartenergy.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.smartenergy.dto.EnergyDataDTO;
 import com.smartenergy.entity.Device;
+import com.smartenergy.exception.BusinessException;
 import com.smartenergy.mapper.DeviceMapper;
 import com.smartenergy.service.RedisService;
 import com.smartenergy.vo.DeviceStatusVO;
@@ -117,12 +118,12 @@ class EnergyDataServiceImplTest {
     }
 
     @Test
-    @DisplayName("设备不存在时抛出 RuntimeException")
+    @DisplayName("设备不存在时抛出 BusinessException")
     void shouldThrowExceptionWhenDeviceNotFound() {
         when(deviceMapper.selectOne(any(LambdaQueryWrapper.class)))
                 .thenReturn(null);
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        BusinessException exception = assertThrows(BusinessException.class,
                 () -> energyDataService.save(validDto));
 
         assertEquals("设备不存在: DEVICE001", exception.getMessage());

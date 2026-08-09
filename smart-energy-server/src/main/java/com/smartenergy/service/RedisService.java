@@ -75,7 +75,8 @@ public class RedisService {
     /**
      * 获取所有在线设备的实时状态。
      * <p>
-     * 通过 SCAN 遍历 device:status:* 键，批量读取并反序列化。
+     * 通过 KEYS 遍历 device:status:* 键，批量读取并反序列化。
+     * TODO: 下一轮改为 SCAN 遍历，避免 KEYS 阻塞 Redis。
      *
      * @return 所有在线设备的实时状态列表
      */

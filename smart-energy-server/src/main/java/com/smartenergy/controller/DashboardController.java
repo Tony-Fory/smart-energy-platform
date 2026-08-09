@@ -1,7 +1,6 @@
 package com.smartenergy.controller;
 
 import com.smartenergy.common.Result;
-import com.smartenergy.mapper.DeviceMapper;
 import com.smartenergy.service.DashboardService;
 import com.smartenergy.vo.DashboardVO;
 import com.smartenergy.vo.DeviceStatusVO;

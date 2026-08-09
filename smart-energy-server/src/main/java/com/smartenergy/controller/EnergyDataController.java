@@ -6,7 +6,10 @@ import com.smartenergy.service.EnergyDataService;
 import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Validated
 public class EnergyDataController {
 
     private final EnergyDataService energyDataService;
@@ -36,8 +40,8 @@ public class EnergyDataController {
     @GetMapping("/energy/history/{deviceCode}")
     public Result<EnergyHistoryVO> history(
             @PathVariable String deviceCode,
-            @RequestParam(defaultValue = "24") int hours,
-            @RequestParam(defaultValue = "100") int limit) {
+            @RequestParam(defaultValue = "24") @Min(1) @Max(168) int hours,
+            @RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
         EnergyHistoryVO vo = energyDataService.queryHistory(deviceCode, hours, limit);
         return Result.success(vo);
     }

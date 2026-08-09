@@ -2,6 +2,7 @@ package com.smartenergy.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartenergy.common.Result;
+import com.smartenergy.service.PermissionService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -9,8 +10,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -20,50 +21,48 @@ import java.io.IOException;
 import java.util.Set;
 
 /**
- * JWT 认证过滤器
+ * JWT 认证过滤器（"你是谁"）
  * <p>
- * 拦截需要认证的 API 请求，验证 Authorization: Bearer <token> 头。
- * 不需要认证的路径在 excludedPaths 中配置。
- * <p>
- * 注意：不使用 Spring Security，仅作为轻量级请求过滤器。
+ * 验证 Authorization: Bearer token，解析用户身份，
+ * 从数据库加载权限并存入 AuthContext。
+ * 权限校验由 PermissionInterceptor 完成。
  *
  * @author smart-energy
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
+@Profile("!test")
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * 不需要 JWT 认证的路径
-     */
+    /** 不需要 JWT 认证的路径 */
     private static final Set<String> EXCLUDED_PATHS = Set.of(
             "/api/auth/login"
     );
 
-    /**
-     * 不需要 JWT 的内部数据上报路径（simulator 调用）
-     * 说明：采集器认证将在后续真实设备接入阶段设计
-     */
+    /** 内部数据上报路径（simulator，不要求 JWT） */
     private static final Set<String> INTERNAL_PATHS = Set.of(
             "/api/energy/data"
     );
 
+    public JwtAuthFilter(JwtService jwtService, PermissionService permissionService,
+                         ObjectMapper objectMapper) {
+        this.jwtService = jwtService;
+        this.permissionService = permissionService;
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        // Swagger / Actuator / 内部上报路径 不需要认证
         if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")
                 || path.startsWith("/actuator")) {
             return true;
         }
-        if (EXCLUDED_PATHS.contains(path) || INTERNAL_PATHS.contains(path)) {
-            return true;
-        }
-        return false;
+        return EXCLUDED_PATHS.contains(path) || INTERNAL_PATHS.contains(path);
     }
 
     @Override
@@ -86,7 +85,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String username = claims.getSubject();
             Long userId = claims.get("userId", Long.class);
 
-            AuthContext.set(new AuthContext.UserInfo(userId, username));
+            // 从数据库加载权限（权限以数据库为准，不写入 JWT）
+            Set<String> permissions = permissionService.getUserPermissions(userId);
+            String roleCode = permissionService.getUserRoleCode(userId);
+
+            AuthContext.set(new AuthContext.UserInfo(userId, username, roleCode, permissions));
             filterChain.doFilter(request, response);
         } catch (ExpiredJwtException e) {
             writeError(response, HttpStatus.UNAUTHORIZED, "Token 已过期");
@@ -102,7 +105,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        Result<Void> result = Result.error(status.value(), message);
-        response.getWriter().write(objectMapper.writeValueAsString(result));
+        response.getWriter().write(
+                objectMapper.writeValueAsString(Result.error(status.value(), message)));
     }
 }

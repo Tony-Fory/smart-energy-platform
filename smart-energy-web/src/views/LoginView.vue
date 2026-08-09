@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, setAuthToken } from '../api/auth'
+import { login, getMe, setAuthInfo } from '../api/auth'
 
 const router = useRouter()
 const formRef = ref()
@@ -29,7 +29,18 @@ async function handleLogin() {
       password: form.value.password,
     })
     if (res.data.code === 0) {
-      setAuthToken(res.data.data.token)
+      const { token, roleCode } = res.data.data
+      // 先设置 token 以便后续 /api/auth/me 请求携带认证
+      setAuthInfo(token, roleCode, [])
+      // 获取完整权限列表
+      try {
+        const meRes = await getMe()
+        if (meRes.data.code === 0 && meRes.data.data) {
+          setAuthInfo(token, meRes.data.data.roleCode, meRes.data.data.permissions)
+        }
+      } catch {
+        // /me 失败时使用登录接口返回的基本信息
+      }
       ElMessage.success('登录成功')
       router.replace('/dashboard')
     } else {

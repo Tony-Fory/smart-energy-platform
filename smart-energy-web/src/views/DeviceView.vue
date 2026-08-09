@@ -10,6 +10,7 @@ import {
   type DeviceVO,
   type DeviceQuery,
 } from '../api'
+import { hasPermission } from '../api/auth'
 
 // ---- device type options ----
 const deviceTypeOptions = [
@@ -235,7 +236,7 @@ onMounted(() => {
       <template #header>
         <div class="card-header">
           <span>设备列表</span>
-          <el-button type="primary" :icon="Plus" size="small" @click="openCreate">新增设备</el-button>
+          <el-button v-if="hasPermission('DEVICE_CREATE')" type="primary" :icon="Plus" size="small" @click="openCreate">新增设备</el-button>
         </div>
       </template>
 
@@ -262,8 +263,8 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" width="170" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link :icon="Edit" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button type="danger" link :icon="Delete" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-if="hasPermission('DEVICE_UPDATE')" type="primary" link :icon="Edit" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="hasPermission('DEVICE_DELETE')" type="danger" link :icon="Delete" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

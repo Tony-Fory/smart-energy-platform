@@ -4,6 +4,7 @@ import DashboardView from '../views/DashboardView.vue'
 import DeviceView from '../views/DeviceView.vue'
 import AlarmView from '../views/AlarmView.vue'
 import AlarmRuleView from '../views/AlarmRuleView.vue'
+import HistoryView from '../views/HistoryView.vue'
 import LoginView from '../views/LoginView.vue'
 import { isAuthenticated } from '../api/auth'
 
@@ -44,6 +45,12 @@ const router = createRouter({
       path: '/alarm/rules',
       name: 'alarmRules',
       component: AlarmRuleView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/history',
+      name: 'history',
+      component: HistoryView,
       meta: { requiresAuth: true },
     },
   ],

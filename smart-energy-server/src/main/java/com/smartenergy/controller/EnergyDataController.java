@@ -2,9 +2,11 @@ package com.smartenergy.controller;
 
 import com.smartenergy.common.Result;
 import com.smartenergy.dto.EnergyDataDTO;
+import com.smartenergy.dto.HistoryQueryDTO;
 import com.smartenergy.service.EnergyDataService;
 import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
+import com.smartenergy.vo.HistoryDataVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,6 +52,13 @@ public class EnergyDataController {
     @GetMapping("/energy/status/{deviceCode}")
     public Result<DeviceStatusVO> status(@Parameter(description = "设备编号") @PathVariable String deviceCode) {
         DeviceStatusVO vo = energyDataService.queryStatus(deviceCode);
+        return Result.success(vo);
+    }
+
+    @Operation(summary = "查询历史时序数据（支持聚合）")
+    @GetMapping("/energy/history")
+    public Result<HistoryDataVO> timeSeriesHistory(@Valid HistoryQueryDTO dto) {
+        HistoryDataVO vo = energyDataService.queryTimeSeries(dto);
         return Result.success(vo);
     }
 }

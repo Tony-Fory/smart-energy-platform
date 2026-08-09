@@ -1,8 +1,10 @@
 package com.smartenergy.service;
 
 import com.smartenergy.dto.EnergyDataDTO;
+import com.smartenergy.dto.HistoryQueryDTO;
 import com.smartenergy.vo.EnergyHistoryVO;
 import com.smartenergy.vo.DeviceStatusVO;
+import com.smartenergy.vo.HistoryDataVO;
 
 /**
  * 能源数据服务接口
@@ -28,9 +30,11 @@ public interface EnergyDataService {
 
     /**
      * 查询设备实时状态（从 Redis 缓存读取）
-     *
-     * @param deviceCode 设备编号
-     * @return 设备实时状态
      */
     DeviceStatusVO queryStatus(String deviceCode);
+
+    /**
+     * 查询历史时序数据（支持聚合）
+     */
+    HistoryDataVO queryTimeSeries(HistoryQueryDTO dto);
 }

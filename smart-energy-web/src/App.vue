@@ -21,6 +21,7 @@ function handleLogout() {
         <RouterLink to="/">首页</RouterLink>
         <RouterLink to="/dashboard">实时监控</RouterLink>
         <RouterLink to="/device">设备管理</RouterLink>
+        <RouterLink v-if="hasPermission('DASHBOARD_VIEW')" to="/history">历史数据</RouterLink>
         <RouterLink v-if="hasPermission('ALARM_VIEW')" to="/alarm">告警中心</RouterLink>
         <RouterLink v-if="hasPermission('ALARM_RULE_VIEW')" to="/alarm/rules">告警规则</RouterLink>
         <span class="nav-spacer"></span>

@@ -2,6 +2,7 @@ package com.smartenergy.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.smartenergy.dto.EnergyDataDTO;
+import com.smartenergy.dto.HistoryQueryDTO;
 import com.smartenergy.entity.Device;
 import com.smartenergy.exception.BusinessException;
 import com.smartenergy.mapper.DeviceMapper;
@@ -10,6 +11,7 @@ import com.smartenergy.service.EnergyDataService;
 import com.smartenergy.service.RedisService;
 import com.smartenergy.vo.DeviceStatusVO;
 import com.smartenergy.vo.EnergyHistoryVO;
+import com.smartenergy.vo.HistoryDataVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,8 +19,10 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -164,6 +168,109 @@ public class EnergyDataServiceImpl implements EnergyDataService {
 
         log.info("查询历史数据完成: deviceCode={}, 返回 {} 条记录", deviceCode, list.size());
         return vo;
+    }
+
+    /**
+     * metric 白名单 → TDengine 实际列名
+     */
+    private static final Map<String, String> METRIC_COLUMN_MAP = Map.of(
+            "POWER", "power",
+            "VOLTAGE", "voltage",
+            "CURRENT", "current",
+            "ENERGY", "energy"
+    );
+
+    /**
+     * 聚合函数：ENERGY 为累计值使用 MAX，其余使用 AVG
+     */
+    private static String aggFunc(String metric) {
+        return "ENERGY".equalsIgnoreCase(metric) ? "MAX" : "AVG";
+    }
+
+    @Override
+    public HistoryDataVO queryTimeSeries(HistoryQueryDTO dto) {
+        // 0. 参数白名单校验
+        String metricUpper = dto.getMetric().toUpperCase();
+        if (!HistoryQueryDTO.VALID_METRICS.contains(metricUpper)) {
+            throw BusinessException.badRequest("非法的指标: " + dto.getMetric());
+        }
+        String intervalKey = dto.getInterval(); // keep original case for map lookup
+        if (!HistoryQueryDTO.INTERVAL_SQL.containsKey(intervalKey)) {
+            throw BusinessException.badRequest("非法的聚合粒度: " + dto.getInterval());
+        }
+
+        // 1. 时间范围校验
+        validateTimeRange(dto, intervalKey);
+
+        String column = METRIC_COLUMN_MAP.get(metricUpper);
+        String tableName = "energy_data_" + dto.getDeviceCode();
+        Timestamp startTs = Timestamp.valueOf(dto.getStartTime());
+        Timestamp endTs = Timestamp.valueOf(dto.getEndTime());
+
+        String sql;
+        Object[] params;
+
+        if ("RAW".equals(intervalKey)) {
+            sql = "SELECT ts, " + column + " FROM " + tableName
+                    + " WHERE ts >= ? AND ts <= ? ORDER BY ts ASC LIMIT ?";
+            params = new Object[]{startTs, endTs, dto.getLimit()};
+        } else {
+            String intervalClause = HistoryQueryDTO.INTERVAL_SQL.get(intervalKey);
+            String func = aggFunc(metricUpper);
+            sql = "SELECT _wstart as ts, " + func + "(" + column + ") as value FROM " + tableName
+                    + " WHERE ts >= ? AND ts <= ?"
+                    + " INTERVAL(" + intervalClause + ")"
+                    + " LIMIT ?";
+            params = new Object[]{startTs, endTs, dto.getLimit()};
+        }
+
+        log.info("历史数据查询: deviceCode={}, metric={}, interval={}", dto.getDeviceCode(), metricUpper, intervalKey);
+
+        List<HistoryDataVO.DataPoint> list = tdengineJdbcTemplate.query(
+                sql, params,
+                (rs, rowNum) -> {
+                    HistoryDataVO.DataPoint point = new HistoryDataVO.DataPoint();
+                    Timestamp dbTs = rs.getTimestamp("ts");
+                    if (dbTs != null) {
+                        point.setTimestamp(dbTs.toLocalDateTime());
+                    }
+                    point.setValue(rs.getDouble("RAW".equals(intervalKey) ? column : "value"));
+                    return point;
+                });
+
+        if (list == null) {
+            list = new ArrayList<>();
+        }
+
+        HistoryDataVO vo = new HistoryDataVO();
+        vo.setDeviceCode(dto.getDeviceCode());
+        vo.setMetric(metricUpper);
+        vo.setInterval(intervalKey);
+        vo.setList(list);
+        log.info("历史数据查询完成: {} 条记录", list.size());
+        return vo;
+    }
+
+    private void validateTimeRange(HistoryQueryDTO dto, String interval) {
+        LocalDateTime now = LocalDateTime.now();
+        if (dto.getStartTime().isAfter(now)) {
+            throw BusinessException.badRequest("开始时间不能是未来时间");
+        }
+        if (dto.getEndTime().isAfter(now)) {
+            throw BusinessException.badRequest("结束时间不能是未来时间");
+        }
+        if (!dto.getStartTime().isBefore(dto.getEndTime())) {
+            throw BusinessException.badRequest("开始时间必须早于结束时间");
+        }
+        long days = ChronoUnit.DAYS.between(dto.getStartTime(), dto.getEndTime());
+        if ("RAW".equals(interval) && days > HistoryQueryDTO.MAX_RAW_DAYS) {
+            throw BusinessException.badRequest(
+                    "RAW 模式最大查询范围为 " + HistoryQueryDTO.MAX_RAW_DAYS + " 天");
+        }
+        if (!"RAW".equals(interval) && days > HistoryQueryDTO.MAX_AGG_DAYS) {
+            throw BusinessException.badRequest(
+                    "聚合模式最大查询范围为 " + HistoryQueryDTO.MAX_AGG_DAYS + " 天");
+        }
     }
 
     @Override

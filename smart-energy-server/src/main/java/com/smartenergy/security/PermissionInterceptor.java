@@ -131,6 +131,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
             return "ALARM_VIEW";
         }
 
+        // Energy history query → DASHBOARD_VIEW
+        if (path.startsWith("/api/energy/history")) {
+            return "DASHBOARD_VIEW";
+        }
+
         return null;
     }
 
